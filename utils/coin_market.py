@@ -1,10 +1,7 @@
-# crypto_api.py
 import requests
 from typing import Dict, Any
 
 class CoinMarketCapAPI:
-    """Client for interacting with the CoinMarketCap API."""
-
     BASE_URL = "https://pro-api.coinmarketcap.com/v1"
 
     def __init__(self, api_key: str):
@@ -15,7 +12,7 @@ class CoinMarketCapAPI:
         }
 
     def get_latest_listings(self, start: int = 1, limit: int = 200,
-                           convert: str = 'USD') -> Dict[str, Any]:
+                            convert: str = 'USD') -> Dict[str, Any]:
         endpoint = f"{self.BASE_URL}/cryptocurrency/listings/latest"
         params = {
             'start': start,
