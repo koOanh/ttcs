@@ -4,12 +4,12 @@ import sys
 import logging
 from typing import Dict, Any
 from colorama import Fore, Style, init
-from flask import Flask # Thêm import này
+from flask import Flask 
 
 # Initialize colorama
 init(autoreset=True)
 
-# Import the PostgresManager from your existing module
+# Import the PostgresManager from module
 from utils.coin_market import CoinMarketCapAPI
 from utils.posgres_pool import PostgresManager, DatabaseError
 
@@ -39,13 +39,10 @@ formatter = ColoredFormatter('%(asctime)s [%(levelname)s] %(message)s', datefmt=
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+#Insert cryptocurrency data from API response into PostgreSQL database.
 def insert_crypto_data(api_response: Dict[str, Any]) -> int:
-    """
-    Insert cryptocurrency data from API response into PostgreSQL database.
-    """
     logger.info("Processing cryptocurrency data for database insertion")
 
-    # Extract relevant fields and prepare data for insertion
     records_inserted = 0
     data_to_insert = []
     for item in api_response.get("data", []):
@@ -60,7 +57,6 @@ def insert_crypto_data(api_response: Dict[str, Any]) -> int:
             last_updated_str = quote_usd.get("last_updated")
 
             if all([name, symbol, price, last_updated_str]):
-                # Parse timestamp from ISO format
                 last_updated = last_updated_str.replace('T', ' ').replace('Z', '')
                 data_to_insert.append((name, symbol, cmc_rank, price, volume_24h, market_cap, last_updated))
             else:
@@ -87,7 +83,6 @@ def insert_crypto_data(api_response: Dict[str, Any]) -> int:
         logger.info("No valid data to insert.")
     return records_inserted
 
-# Logic chính của bạn, giờ được đóng gói trong một hàm để Flask gọi
 def run_data_collection_job():
     job_status = "SUCCESS"
     logger.info("╔══════════════════════════════════════════════════════╗")
@@ -101,7 +96,7 @@ def run_data_collection_job():
             logger.critical("COINMARKETCAP_API_KEY environment variable not set. Exiting.")
             sys.exit(1)
 
-        client = CoinMarketCapAPI(api_key) # Sử dụng key duy nhất
+        client = CoinMarketCapAPI(api_key) 
 
         # Kết nối đến PostgreSQL
         logger.info("Connecting to PostgreSQL database...")
