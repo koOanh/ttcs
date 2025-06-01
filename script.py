@@ -4,18 +4,14 @@ import sys
 import logging
 from typing import Dict, Any
 from colorama import Fore, Style, init
-from flask import Flask 
+from flask import Flask
 
-# Initialize colorama
 init(autoreset=True)
 
-# Import the PostgresManager from module
 from utils.coin_market import CoinMarketCapAPI
 from utils.posgres_pool import PostgresManager, DatabaseError
 
-# Configure logging
 class ColoredFormatter(logging.Formatter):
-    """Custom formatter to add colors to log messages"""
     COLORS = {
         'DEBUG': Fore.BLUE,
         'INFO': Fore.GREEN,
@@ -31,7 +27,6 @@ class ColoredFormatter(logging.Formatter):
             record.msg = f"{self.COLORS[levelname]}{record.msg}{Style.RESET_ALL}"
         return super().format(record)
 
-# Set up logger
 logger = logging.getLogger('crypto_job')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
@@ -39,7 +34,6 @@ formatter = ColoredFormatter('%(asctime)s [%(levelname)s] %(message)s', datefmt=
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-#Insert cryptocurrency data from API response into PostgreSQL database.
 def insert_crypto_data(api_response: Dict[str, Any]) -> int:
     logger.info("Processing cryptocurrency data for database insertion")
 
@@ -78,7 +72,7 @@ def insert_crypto_data(api_response: Dict[str, Any]) -> int:
             logger.info(f"Successfully inserted/updated {records_inserted} records into the database.")
         except DatabaseError as e:
             logger.error(f"Database insertion failed: {e}")
-            raise # Re-raise to be caught by main's try-except
+            raise
     else:
         logger.info("No valid data to insert.")
     return records_inserted
@@ -86,25 +80,22 @@ def insert_crypto_data(api_response: Dict[str, Any]) -> int:
 def run_data_collection_job():
     job_status = "SUCCESS"
     logger.info("╔══════════════════════════════════════════════════════╗")
-    logger.info("║         Starting Cryptocurrency Data Collection Job      ║")
+    logger.info("║           Starting Cryptocurrency Data Collection Job          ║")
     logger.info("╚══════════════════════════════════════════════════════╝")
 
     try:
-        # Lấy API key từ biến môi trường
         api_key = os.environ.get("COINMARKETCAP_API_KEY")
         if not api_key:
             logger.critical("COINMARKETCAP_API_KEY environment variable not set. Exiting.")
             sys.exit(1)
 
-        client = CoinMarketCapAPI(api_key) 
+        client = CoinMarketCapAPI(api_key)
 
-        # Kết nối đến PostgreSQL
         logger.info("Connecting to PostgreSQL database...")
         with PostgresManager() as db_manager:
-            db_manager.initialize_pool() # Đảm bảo pool được khởi tạo
+            db_manager.initialize_pool()
             logger.info("Successfully connected to PostgreSQL")
 
-            # Kiểm tra và tạo bảng nếu chưa tồn tại
             db_manager.execute_query("""
                 CREATE TABLE IF NOT EXISTS cryptocurrency_data (
                     id SERIAL PRIMARY KEY,
@@ -121,21 +112,17 @@ def run_data_collection_job():
             """)
             logger.info("Database table 'cryptocurrency_data' ensured.")
 
-            # Lấy dữ liệu từ CoinMarketCap API
             logger.info("Fetching data from CoinMarketCap API")
             api_response = client.get_latest_listings()
 
-            # Check for API errors
             if "error" in api_response:
                 logger.error(f"API Error: {api_response['error']}")
                 job_status = "FAILED"
-                # Không thoát ứng dụng ngay lập tức, trả về lỗi để Flask xử lý
                 return {"status": "error", "message": api_response["error"]}, 500
 
-            # Insert data into database
             insert_crypto_data(api_response)
             logger.info("✅ Job completed successfully")
-            job_status = "SUCCESS" # Đảm bảo job_status được cập nhật
+            job_status = "SUCCESS"
 
     except ImportError:
         logger.error("Failed to import required modules. Check that all dependencies are installed")
@@ -146,7 +133,6 @@ def run_data_collection_job():
         job_status = "FAILED"
         return {"status": "error", "message": str(e)}, 500
     finally:
-        # Print fancy job end delimiter with appropriate color based on status
         end_time = logging.Formatter().formatTime(logging.LogRecord('', 0, '', 0, '', (), None), '%Y-%m-%d %H:%M:%S')
         color = Fore.GREEN if job_status == "SUCCESS" else Fore.RED
 
@@ -161,7 +147,6 @@ def run_data_collection_job():
         logger.info(bottom_banner)
     return {"status": "success", "message": "Data collection job completed successfully"}, 200
 
-# Khởi tạo ứng dụng Flask
 app = Flask(__name__)
 
 @app.route("/", methods=["GET"])
@@ -171,11 +156,10 @@ def index():
     Triggers the data collection job.
     """
     logger.info("Received HTTP request to trigger data collection job.")
-    result, status_code = run_data_collection_job() # Gọi hàm chính
+    result, status_code = run_data_collection_job()
     return result, status_code
 
 if __name__ == "__main__":
-    # Lấy cổng từ biến môi trường PORT, mặc định là 8080
     port = int(os.environ.get("PORT", 8080))
     logger.info(f"Starting Flask application on port {port}")
-    app.run(debug=False, host="0.0.0.0", port=port) # Chạy ứng dụng Flask
+    app.run(debug=False, host="0.0.0.0", port=port)
